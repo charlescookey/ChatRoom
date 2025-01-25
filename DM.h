@@ -7,6 +7,7 @@
 #include "imgui.h"
 
 #include <string>
+#include <unordered_map>
 
 struct User {
     std::string name;
@@ -166,8 +167,12 @@ public:
     }
 };
 
+std::unordered_map<std::string, DM> DMs;
+
 static void OpenDM( User& user)
 {
-    static DM console;
-    console.Draw( user);
+    //static DM console;
+    //console.Draw( user);
+
+    DMs[user.name].Draw(user);
 }
