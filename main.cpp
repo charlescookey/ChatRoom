@@ -12,10 +12,18 @@
 #include <d3d11.h>
 #include <tchar.h>
 
+
+#include <vector>
+
+#include "DM.h"
+
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "D3D11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
 #pragma comment(lib, "DXGI.lib")
+
+
+
 
 // Data
 static ID3D11Device*            g_pd3dDevice = nullptr;
@@ -31,6 +39,13 @@ void CleanupDeviceD3D();
 void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+void  ExecCommand(std::string s, ImVector<std::string> &Items)
+{
+    Items.push_back(s);
+}
+
+
 
 // Main code
 int main(int, char**)
@@ -84,9 +99,22 @@ int main(int, char**)
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
     //IM_ASSERT(font != nullptr);
 
+
+
+    char                  InputBuf[256];
+    memset(InputBuf, 0, sizeof(InputBuf));
+    ImVector<std::string>       Items;
+    std::vector<User>       Users;
+
+    Users.push_back({ "Charles" , false });
+    Users.push_back({ "Cookey" , false });
+    Users.push_back({ "Tony" , false });
+
     // Our state
     bool show_demo_window = true;
     bool show_another_window = false;
+    bool sendMessage = false;
+    bool open_dm = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     bool window_open = true;
@@ -130,12 +158,57 @@ int main(int, char**)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
+
+
+            
+
+;
+
         ImGui::SetNextWindowSize(ImVec2(500, 300));
         if (window_open) {
             if (ImGui::Begin("Chat Client", &window_open)) {
+                if (ImGui::BeginChild("UsersRegion", ImVec2(200, 150), true, ImGuiWindowFlags_None)) {
+                    ImGui::TextUnformatted("Users:");
+                    ImGui::Separator();
+                    for (int i =0; i < Users.size() ; i++)
+                    {
+                        ImGui::Selectable(Users[i].name.c_str(), &Users[i].selected);
+                    }
+                }ImGui::EndChild();
+                ImGui::SameLine();
+                if (ImGui::BeginChild("TextRegion", ImVec2(200, 150), true, ImGuiWindowFlags_None)) {
+                    for (std::string item : Items)
+                    {
+                        ImGui::TextUnformatted(item.c_str());
+                    }
+                }ImGui::EndChild();
+                if (ImGui::InputText("Message", InputBuf, IM_ARRAYSIZE(InputBuf)))
+                {
+
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Send")) {
+                    sendMessage = true;
+                }
+                else {
+                    sendMessage = false;
+                }
             }ImGui::End();
         }
         else break;
+
+        for (int i = 0; i < Users.size(); i++)
+        {
+            if (Users[i].selected) {
+                OpenDM(Users[i]);
+            }
+        }
+        if (sendMessage) {
+            std::string s(InputBuf);
+            if (s[0])
+                ExecCommand(s, Items);
+            memset(InputBuf, 0, sizeof(InputBuf));
+        }
 
 
         //// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
