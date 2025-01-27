@@ -5,6 +5,7 @@
 // - Getting Started      https://dearimgui.com/getting-started
 // - Documentation        https://dearimgui.com/docs (same as your local docs/ folder).
 // - Introduction, links and more at the top of imgui.cpp
+#include "Network.h"
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
@@ -14,6 +15,7 @@
 
 
 #include <vector>
+#include <sstream>
 
 #include "DM.h"
 
@@ -21,9 +23,10 @@
 #pragma comment(lib, "D3D11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
 #pragma comment(lib, "DXGI.lib")
+#pragma comment(lib, "ws2_32.lib")
 
 
-
+const char delimiter = '\x1F';
 
 // Data
 static ID3D11Device*            g_pd3dDevice = nullptr;
@@ -47,6 +50,70 @@ void  ExecCommand(std::string s, ImVector<std::string> &Items)
 
 
 
+static void OpenDM(User& user, std::unordered_map<std::string, DM>& DMs)
+{
+    //static DM console;
+    //console.Draw( user);
+
+    DMs[user.name].Draw(user);
+}
+
+void parseUserList(std::string userList , std::vector<User>& Users) {
+
+    std::stringstream ss(userList);
+    std::string user;
+    while (std::getline(ss, user, delimiter)) {
+        if (user.empty())continue;
+        Users.push_back({ user , false});
+    }
+
+}
+
+void parseGroupMessage(std::string message, std::vector <std::string>& GroupMessage) {
+    GroupMessage.push_back(message);
+}
+
+void parsePrivateMessage(std::string message, std::unordered_map<std::string, DM>& DMs) {
+    std::string sender;
+
+    size_t start = 0;
+    size_t end = message.find(delimiter);
+
+    sender = message.substr(start, end - start);
+    
+
+    start = end + 1;
+    message = message.substr(start);
+
+    DMs[sender].Items.push_back(message);
+}
+
+void parseServerMessage(std::string message, std::vector<User>& Users , std::vector <std::string>& GroupMessage, std::unordered_map<std::string, DM>& DMs) {
+    std::string temp;
+
+    size_t start = 0;
+    size_t end = message.find(delimiter);
+
+    temp = message.substr(start, end - start);
+    int type = std::stoi(temp);
+
+    start = end + 1;
+    temp = message.substr(start);
+
+    switch (type) {
+    case 1:
+        parseUserList(temp, Users);
+        break;
+    case 2:
+        parseGroupMessage(temp, GroupMessage);
+        break;
+    case 3:
+        parsePrivateMessage(message, DMs);
+
+    }
+}
+
+
 // Main code
 int main(int, char**)
 {
@@ -55,6 +122,10 @@ int main(int, char**)
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
     ::RegisterClassExW(&wc);
     HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui DirectX11 Example", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
+
+    std::string name;
+    std::cout << "Please enter your name: \n";
+    std::cin >> name;
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
@@ -83,32 +154,26 @@ int main(int, char**)
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - The fonts will be rasterized at a given size (w/ oversampling) and stored into a texture when calling ImFontAtlas::Build()/GetTexDataAsXXXX(), which ImGui_ImplXXXX_NewFrame below will call.
-    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
-    // - Read 'docs/FONTS.md' for more instructions and details.
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf", 18.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf", 15.0f);
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
-    //IM_ASSERT(font != nullptr);
-
-
 
     char                  InputBuf[256];
     memset(InputBuf, 0, sizeof(InputBuf));
-    ImVector<std::string>       Items;
-    std::vector<User>       Users;
+    std::vector <std::string> GroupMessage;
+    std::vector <User>       Users;
+    std::unordered_map<std::string, DM> DMs;
+    std::string userList;
 
     Users.push_back({ "Charles" , false });
     Users.push_back({ "Cookey" , false });
     Users.push_back({ "Tony" , false });
+
+
+    Network net;
+    if (net.initialize() != 0) {
+        std::cout << "Couldn't connect to server\n";
+    }
+    
+    net.sendMessage("1" + delimiter + name);
+
 
     // Our state
     bool show_demo_window = true;
@@ -125,6 +190,9 @@ int main(int, char**)
     {
         // Poll and handle messages (inputs, window resize, etc.)
         // See the WndProc() function below for our to dispatch events to the Win32 backend.
+        net.receiveMessage(userList);
+        parseUserList(userList, Users);
+
         MSG msg;
         while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE))
         {
@@ -157,12 +225,6 @@ int main(int, char**)
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
-
-
-
-            
-
-;
 
         ImGui::SetNextWindowSize(ImVec2(500, 300));
         if (window_open) {
@@ -200,13 +262,15 @@ int main(int, char**)
         for (int i = 0; i < Users.size(); i++)
         {
             if (Users[i].selected) {
-                OpenDM(Users[i]);
+                OpenDM(Users[i], DMs);
             }
         }
         if (sendMessage) {
             std::string s(InputBuf);
-            if (s[0])
+            if (!s.empty()) {
                 ExecCommand(s, Items);
+                net.sendMessage(s);
+            }
             memset(InputBuf, 0, sizeof(InputBuf));
         }
 

@@ -19,9 +19,8 @@ class DM {
 public:
     char                  InputBuf[256];
     ImVector<std::string>       Items;
-    ImVector<const char*> Commands;
-    ImVector<char*>       History;
-    int                   HistoryPos;    // -1: new line, 0..History.Size-1 browsing history.
+
+;    // -1: new line, 0..History.Size-1 browsing history.
     ImGuiTextFilter       Filter;
     bool                  AutoScroll;
     bool                  ScrollToBottom;
@@ -32,21 +31,12 @@ public:
         //IMGUI_DEMO_MARKER("Examples/Console");
         ClearLog();
         memset(InputBuf, 0, sizeof(InputBuf));
-        HistoryPos = -1;
-
-        // "CLASSIFY" is here to provide the test case where "C"+[tab] completes to "CL" and display multiple matches.
-        Commands.push_back("HELP");
-        Commands.push_back("HISTORY");
-        Commands.push_back("CLEAR");
-        Commands.push_back("CLASSIFY");
         AutoScroll = true;
         ScrollToBottom = false;
     }
     ~DM()
     {
         ClearLog();
-        for (int i = 0; i < History.Size; i++)
-            ImGui::MemFree(History[i]);
     }
 
     void    ClearLog()
@@ -90,18 +80,7 @@ public:
 
             for (std::string item : Items)
             {
-
-                // Normally you would store more information in your item than just a string.
-                // (e.g. make Items[] an array of structure, store color/type etc.)
-                //ImVec4 color;
-                //bool has_color = false;
-               // if (strstr(item, "[error]")) { color = ImVec4(1.0f, 0.4f, 0.4f, 1.0f); has_color = true; }
-               // else if (strncmp(item, "# ", 2) == 0) { color = ImVec4(1.0f, 0.8f, 0.6f, 1.0f); has_color = true; }
-               // if (has_color)
-                    //ImGui::PushStyleColor(ImGuiCol_Text, color);
                 ImGui::TextUnformatted(item.c_str());
-                //if (has_color)
-                    //ImGui::PopStyleColor();
             }
 
             // Keep up at the bottom of the scroll region if we were already at the bottom at the beginning of the frame.
@@ -148,7 +127,6 @@ public:
 
     void    ExecCommand(std::string s)
     {
-
         Items.push_back(s);
         ScrollToBottom = true;
     }
@@ -166,13 +144,3 @@ public:
         return 0;
     }
 };
-
-std::unordered_map<std::string, DM> DMs;
-
-static void OpenDM( User& user)
-{
-    //static DM console;
-    //console.Draw( user);
-
-    DMs[user.name].Draw(user);
-}

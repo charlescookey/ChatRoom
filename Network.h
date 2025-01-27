@@ -16,6 +16,7 @@ class Network {
     unsigned int port = 65432;
     std::string sentence = "Hello, server!";
     SOCKET client_socket = socket(0,0,0);
+public:
     Network() {
     }
 
