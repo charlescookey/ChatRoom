@@ -16,6 +16,8 @@
 
 #include <vector>
 #include <sstream>
+#include <queue>
+#include <mutex>
 
 #include "DM.h"
 
@@ -26,7 +28,7 @@
 #pragma comment(lib, "ws2_32.lib")
 
 
-const char delimiter = '\x1F';
+
 
 // Data
 static ID3D11Device*            g_pd3dDevice = nullptr;
@@ -43,19 +45,13 @@ void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-void  ExecCommand(std::string s, ImVector<std::string> &Items)
-{
-    Items.push_back(s);
-}
 
-
-
-static void OpenDM(User& user, std::unordered_map<std::string, DM>& DMs)
+static void OpenDM(std::string name, User& user, std::unordered_map<std::string, DM>& DMs, Network& net)
 {
     //static DM console;
     //console.Draw( user);
 
-    DMs[user.name].Draw(user);
+    DMs[user.name].Draw(name, user, net);
 }
 
 void parseUserList(std::string userList , std::vector<User>& Users) {
@@ -89,6 +85,7 @@ void parsePrivateMessage(std::string message, std::unordered_map<std::string, DM
 }
 
 void parseServerMessage(std::string message, std::vector<User>& Users , std::vector <std::string>& GroupMessage, std::unordered_map<std::string, DM>& DMs) {
+    if (message.empty())return;
     std::string temp;
 
     size_t start = 0;
@@ -108,8 +105,23 @@ void parseServerMessage(std::string message, std::vector<User>& Users , std::vec
         parseGroupMessage(temp, GroupMessage);
         break;
     case 3:
-        parsePrivateMessage(message, DMs);
+        parsePrivateMessage(temp, DMs);
 
+    }
+}
+
+std::queue<std::string> messageQueue;
+std::mutex queueMutex;
+
+void recieverThread(Network& net) {
+    std::string message;
+    while (true) {
+        if (net.receiveMessage(message) == -1)break;
+
+        {
+            std::lock_guard<std::mutex> lock(queueMutex);
+            messageQueue.push(message);
+        }
     }
 }
 
@@ -160,19 +172,16 @@ int main(int, char**)
     std::vector <std::string> GroupMessage;
     std::vector <User>       Users;
     std::unordered_map<std::string, DM> DMs;
-    std::string userList;
-
-    Users.push_back({ "Charles" , false });
-    Users.push_back({ "Cookey" , false });
-    Users.push_back({ "Tony" , false });
-
+    std::string serverMessage;
 
     Network net;
     if (net.initialize() != 0) {
         std::cout << "Couldn't connect to server\n";
     }
     
-    net.sendMessage("1" + delimiter + name);
+
+    net.sendMessage(std::string("1") + delimiter + name);
+
 
 
     // Our state
@@ -186,12 +195,19 @@ int main(int, char**)
 
     // Main loop
     bool done = false;
+
+    std::thread* receivingThread = new std::thread(recieverThread , std::ref(net));
     while (!done)
     {
         // Poll and handle messages (inputs, window resize, etc.)
         // See the WndProc() function below for our to dispatch events to the Win32 backend.
-        net.receiveMessage(userList);
-        parseUserList(userList, Users);
+
+        while (!messageQueue.empty()) {
+            std::string message = messageQueue.front();
+            messageQueue.pop();
+            std::cout << "Message received by "<<name<<": " << message << std::endl;
+            parseServerMessage(message, Users, GroupMessage, DMs);
+        }
 
         MSG msg;
         while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE))
@@ -239,7 +255,7 @@ int main(int, char**)
                 }ImGui::EndChild();
                 ImGui::SameLine();
                 if (ImGui::BeginChild("TextRegion", ImVec2(200, 150), true, ImGuiWindowFlags_None)) {
-                    for (std::string item : Items)
+                    for (std::string item : GroupMessage)
                     {
                         ImGui::TextUnformatted(item.c_str());
                     }
@@ -262,13 +278,13 @@ int main(int, char**)
         for (int i = 0; i < Users.size(); i++)
         {
             if (Users[i].selected) {
-                OpenDM(Users[i], DMs);
+                OpenDM(name , Users[i], DMs, net);
             }
         }
         if (sendMessage) {
             std::string s(InputBuf);
             if (!s.empty()) {
-                ExecCommand(s, Items);
+                s = std::string("2") + delimiter + name + ": " + s;
                 net.sendMessage(s);
             }
             memset(InputBuf, 0, sizeof(InputBuf));

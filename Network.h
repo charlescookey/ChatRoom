@@ -15,7 +15,7 @@ class Network {
     const char* host = "127.0.0.1"; // Server IP address
     unsigned int port = 65432;
     std::string sentence = "Hello, server!";
-    SOCKET client_socket = socket(0,0,0);
+    SOCKET client_socket;
 public:
     Network() {
     }
@@ -62,12 +62,13 @@ public:
     }
 
     int sendMessage(std::string message) {
-        if (send(client_socket, message.c_str(), static_cast<int>(sentence.size()), 0) == SOCKET_ERROR) {
+        if (send(client_socket, message.c_str(), static_cast<int>(message.size()), 0) == SOCKET_ERROR) {
             std::cerr << "Send failed with error: " << WSAGetLastError() << std::endl;
             closesocket(client_socket);
             WSACleanup();
             return -1;
         }
+        std::cout << "Sent \"" << message << "\" from client: " << client_socket << "\n";
         return 0;
     }
 
@@ -87,6 +88,7 @@ public:
             std::cerr << "Receive failed with error: " << WSAGetLastError() << std::endl;
             return -1;
         }
+        std::cout << "Recieved message " << message<<"\n";
         return 0;
     }
 

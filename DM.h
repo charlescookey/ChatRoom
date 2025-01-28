@@ -14,6 +14,7 @@ struct User {
     bool selected = false;
 };
 
+const char delimiter = '\x1F';
 
 class DM {
 public:
@@ -44,7 +45,7 @@ public:
         Items.clear();
     }
 
-    void    Draw(User& user)
+    void    Draw(std::string name, User& user, Network& net)
     {
         std::string title = "Private Chat With " + user.name;
         ImGui::SetNextWindowSize(ImVec2(600, 300), ImGuiCond_FirstUseEver);
@@ -116,19 +117,15 @@ public:
 
         if (sendMessage) {
             std::string s(InputBuf);
-            if (s[0])
-                ExecCommand(s);
+            if (!s.empty()) {
+                s = std::string("3") + delimiter + user.name + delimiter + name + delimiter +  name + ": " + s;
+                net.sendMessage(s);
+            }
             memset(InputBuf, 0, sizeof(InputBuf));
             reclaim_focus = true;
         }
 
         ImGui::End();
-    }
-
-    void    ExecCommand(std::string s)
-    {
-        Items.push_back(s);
-        ScrollToBottom = true;
     }
 
     // In C++11 you'd be better off using lambdas for this sort of forwarding callbacks
