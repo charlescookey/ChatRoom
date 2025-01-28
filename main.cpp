@@ -62,7 +62,6 @@ void parseUserList(std::string userList , std::vector<User>& Users) {
         if (user.empty())continue;
         Users.push_back({ user , false});
     }
-
 }
 
 void parseGroupMessage(std::string message, std::vector <std::string>& GroupMessage) {
@@ -128,7 +127,6 @@ void recieverThread(Network& net) {
     }
 }
 
-
 // Main code
 int main(int, char**)
 {
@@ -169,7 +167,6 @@ int main(int, char**)
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
-
     char                  InputBuf[256];
     memset(InputBuf, 0, sizeof(InputBuf));
     std::vector <std::string> GroupMessage;
@@ -182,10 +179,7 @@ int main(int, char**)
         std::cout << "Couldn't connect to server\n";
     }
     
-
     net.sendMessage(std::string("1") + delimiter + name);
-
-
 
     // Our state
     bool show_demo_window = true;
@@ -199,6 +193,7 @@ int main(int, char**)
     // Main loop
     bool done = false;
 
+    //start a thread to recieve messages
     std::thread* receivingThread = new std::thread(recieverThread , std::ref(net));
     while (!done)
     {

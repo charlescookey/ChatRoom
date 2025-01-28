@@ -21,8 +21,6 @@ public:
     char                  InputBuf[256];
     std::vector<std::string>       Items;
 
-;    // -1: new line, 0..History.Size-1 browsing history.
-    ImGuiTextFilter       Filter;
     bool                  AutoScroll;
     bool                  ScrollToBottom;
     bool                  sendMessage = false;
@@ -62,8 +60,6 @@ public:
             }
             ImGui::EndPopup();
         }
-
-        // TODO: display items starting from the bottom
 
         // Reserve enough left-over height for 1 separator + 1 input text
         const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y* 2 + ImGui::GetFrameHeightWithSpacing() ;
