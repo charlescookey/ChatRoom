@@ -55,7 +55,7 @@ static void OpenDM(std::string name, User& user, std::unordered_map<std::string,
 }
 
 void parseUserList(std::string userList , std::vector<User>& Users) {
-
+    Users.clear();
     std::stringstream ss(userList);
     std::string user;
     while (std::getline(ss, user, delimiter)) {
@@ -81,6 +81,9 @@ void parsePrivateMessage(std::string message, std::unordered_map<std::string, DM
     start = end + 1;
     message = message.substr(start);
 
+    if (DMs.count(sender) <= 0) {
+        DMs[sender] = DM();
+    }
     DMs[sender].Items.push_back(message);
 }
 

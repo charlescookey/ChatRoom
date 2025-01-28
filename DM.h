@@ -19,7 +19,7 @@ const char delimiter = '\x1F';
 class DM {
 public:
     char                  InputBuf[256];
-    ImVector<std::string>       Items;
+    std::vector<std::string>       Items;
 
 ;    // -1: new line, 0..History.Size-1 browsing history.
     ImGuiTextFilter       Filter;
