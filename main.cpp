@@ -250,6 +250,7 @@ int main(int, char**)
                     ImGui::Separator();
                     for (int i =0; i < Users.size() ; i++)
                     {
+                        if (Users[i].name == name)continue;
                         ImGui::Selectable(Users[i].name.c_str(), &Users[i].selected);
                     }
                 }ImGui::EndChild();
