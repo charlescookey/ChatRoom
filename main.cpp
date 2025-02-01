@@ -19,6 +19,7 @@
 #include <queue>
 #include <mutex>
 
+
 #include "DM.h"
 
 #include "Sound.h"
@@ -88,8 +89,8 @@ void parsePrivateMessage(std::string message, std::unordered_map<std::string, DM
     DMs[sender].Items.push_back(message);
 }
 
-void parseServerMessage(std::string message, std::vector<User>& Users , std::vector <std::string>& GroupMessage, std::unordered_map<std::string, DM>& DMs, Sound& sound) {
-    if (message.empty())return;
+int parseServerMessage(std::string message, std::vector<User>& Users , std::vector <std::string>& GroupMessage, std::unordered_map<std::string, DM>& DMs, Sound& sound) {
+    if (message.empty())return 0;
     std::string temp;
 
     size_t start = 0;
@@ -116,14 +117,24 @@ void parseServerMessage(std::string message, std::vector<User>& Users , std::vec
     case 4:
         parseGroupMessage(temp, GroupMessage);
         break;
+    case 5:
+        return 1;
+    case 6:
+        return -1;
+    case 7:
+        parsePrivateMessage(temp, DMs);
+        break;
     }
+    return 0;
 }
 
 std::queue<std::string> messageQueue;
 std::mutex queueMutex;
 
+
 void recieverThread(Network& net) {
     std::string message;
+    std::string stopMessage = "!bye" + delimiter + std::string("!stop");
     while (true) {
         if (net.receiveMessage(message) == -1)break;
 
@@ -131,7 +142,10 @@ void recieverThread(Network& net) {
             std::lock_guard<std::mutex> lock(queueMutex);
             messageQueue.push(message);
         }
+
+        if (message == stopMessage)break;
     }
+    std::cout << "Reciver thread stopped\n";
 }
 
 // Main code
@@ -177,7 +191,6 @@ int main(int, char**)
     std::vector <std::string> GroupMessage;
     std::vector <User>       Users;
     std::unordered_map<std::string, DM> DMs;
-    std::string serverMessage;
 
     Network net;
     if (net.initialize() != 0) {
@@ -197,6 +210,9 @@ int main(int, char**)
     bool window_open = false;
     bool login_open = true;
 
+    bool login_error = false;
+    std::string login_error_message{};
+
     Sound sound;
 
     // Main loop
@@ -213,7 +229,14 @@ int main(int, char**)
             std::string message = messageQueue.front();
             messageQueue.pop();
             std::cout << "Message received by "<<name<<": " << message << std::endl;
-            parseServerMessage(message, Users, GroupMessage, DMs, sound);
+            int ret = parseServerMessage(message, Users, GroupMessage, DMs, sound);
+            if (ret == -1){
+                login_error_message = "Username already in use";
+                login_error = true;
+            }else if (ret == 1) {
+                login_open = false;
+                window_open = true;
+            }
         }
 
         MSG msg;
@@ -251,8 +274,11 @@ int main(int, char**)
 
         //ImGui::SetNextWindowSize(ImVec2(500, 300));
         if (login_open) {
-            if (ImGui::Begin("Login", &login_open)) {   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+            if (ImGui::Begin("Login", &login_open, ImGuiWindowFlags_AlwaysAutoResize)) {   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
                 ImGui::Text("Please enter your username!");
+                if (login_error) {
+                    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), login_error_message.c_str());
+                }
                 if (ImGui::InputText("##hidden", InputBuf, IM_ARRAYSIZE(InputBuf)))
                 {
 
@@ -261,18 +287,26 @@ int main(int, char**)
                 if (ImGui::Button("Login")) {
                     name = std::string(InputBuf);
                     if (!name.empty()) {
-                        login_open = false;
-                        window_open = true;
                         net.sendMessage(std::string("1") + delimiter + name);
                         memset(InputBuf, 0, sizeof(InputBuf));
+                        login_error = false;
+                    }
+                    else {
+                        login_error_message = "Username cannot be empty!";
+                        login_error = true;
                     }
                 }
             }
             ImGui::End();
         }
+        ImGui::SetNextWindowSizeConstraints(ImVec2(424, 208), ImVec2(FLT_MAX, FLT_MAX));
+        const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y * 2 + ImGui::GetFrameHeightWithSpacing();
         if (window_open) {
             if (ImGui::Begin("Chat Client", &window_open)) {
-                if (ImGui::BeginChild("UsersRegion", ImVec2(200, 150), true, ImGuiWindowFlags_None)) {
+
+                const float children_width = ImGui::GetWindowWidth()/2 - ImGui::GetStyle().ItemSpacing.x * 2 ;
+
+                if (ImGui::BeginChild("UsersRegion", ImVec2(children_width, -footer_height_to_reserve), true, ImGuiWindowFlags_None)) {
                     ImGui::TextUnformatted("Users:");
                     ImGui::Separator();
                     for (int i =0; i < Users.size() ; i++)
@@ -282,7 +316,7 @@ int main(int, char**)
                     }
                 }ImGui::EndChild();
                 ImGui::SameLine();
-                if (ImGui::BeginChild("TextRegion", ImVec2(200, 150), true, ImGuiWindowFlags_None)) {
+                if (ImGui::BeginChild("TextRegion", ImVec2(children_width, -footer_height_to_reserve), true, ImGuiWindowFlags_None)) {
                     for (std::string item : GroupMessage)
                     {
                         ImGui::TextUnformatted(item.c_str());
@@ -303,6 +337,9 @@ int main(int, char**)
         }
         else if (!window_open && !login_open) {
             //send disconnect message here
+            std::string stopMessage = std::string("5") + delimiter + "bye" + delimiter + name;
+            std::cout << "Sent disconnect\n";
+            net.sendMessage(stopMessage);
             break;
         }
 
@@ -335,6 +372,7 @@ int main(int, char**)
     }
 
     // Cleanup
+
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
@@ -343,6 +381,7 @@ int main(int, char**)
     ::DestroyWindow(hwnd);
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
 
+    receivingThread->join();
     return 0;
 }
 
