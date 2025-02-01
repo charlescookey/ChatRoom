@@ -21,6 +21,8 @@
 
 #include "DM.h"
 
+#include "Sound.h"
+
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "D3D11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
@@ -86,7 +88,7 @@ void parsePrivateMessage(std::string message, std::unordered_map<std::string, DM
     DMs[sender].Items.push_back(message);
 }
 
-void parseServerMessage(std::string message, std::vector<User>& Users , std::vector <std::string>& GroupMessage, std::unordered_map<std::string, DM>& DMs) {
+void parseServerMessage(std::string message, std::vector<User>& Users , std::vector <std::string>& GroupMessage, std::unordered_map<std::string, DM>& DMs, Sound& sound) {
     if (message.empty())return;
     std::string temp;
 
@@ -105,10 +107,15 @@ void parseServerMessage(std::string message, std::vector<User>& Users , std::vec
         break;
     case 2:
         parseGroupMessage(temp, GroupMessage);
+        sound.playGMSound();
         break;
     case 3:
         parsePrivateMessage(temp, DMs);
-
+        sound.playPMSound();
+        break;
+    case 4:
+        parseGroupMessage(temp, GroupMessage);
+        break;
     }
 }
 
@@ -189,6 +196,7 @@ int main(int, char**)
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     bool window_open = true;
+    Sound sound;
 
     // Main loop
     bool done = false;
@@ -204,7 +212,7 @@ int main(int, char**)
             std::string message = messageQueue.front();
             messageQueue.pop();
             std::cout << "Message received by "<<name<<": " << message << std::endl;
-            parseServerMessage(message, Users, GroupMessage, DMs);
+            parseServerMessage(message, Users, GroupMessage, DMs, sound);
         }
 
         MSG msg;
