@@ -144,8 +144,6 @@ int main(int, char**)
     HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui DirectX11 Example", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
 
     std::string name;
-    std::cout << "Please enter your name: \n";
-    std::cin >> name;
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
@@ -184,9 +182,10 @@ int main(int, char**)
     Network net;
     if (net.initialize() != 0) {
         std::cout << "Couldn't connect to server\n";
+        return -1;
     }
     
-    net.sendMessage(std::string("1") + delimiter + name);
+    //net.sendMessage(std::string("1") + delimiter + name);
 
     // Our state
     bool show_demo_window = true;
@@ -195,7 +194,9 @@ int main(int, char**)
     bool open_dm = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    bool window_open = true;
+    bool window_open = false;
+    bool login_open = true;
+
     Sound sound;
 
     // Main loop
@@ -248,7 +249,27 @@ int main(int, char**)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::SetNextWindowSize(ImVec2(500, 300));
+        //ImGui::SetNextWindowSize(ImVec2(500, 300));
+        if (login_open) {
+            if (ImGui::Begin("Login", &login_open)) {   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+                ImGui::Text("Please enter your username!");
+                if (ImGui::InputText("##hidden", InputBuf, IM_ARRAYSIZE(InputBuf)))
+                {
+
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Login")) {
+                    name = std::string(InputBuf);
+                    if (!name.empty()) {
+                        login_open = false;
+                        window_open = true;
+                        net.sendMessage(std::string("1") + delimiter + name);
+                        memset(InputBuf, 0, sizeof(InputBuf));
+                    }
+                }
+            }
+            ImGui::End();
+        }
         if (window_open) {
             if (ImGui::Begin("Chat Client", &window_open)) {
                 if (ImGui::BeginChild("UsersRegion", ImVec2(200, 150), true, ImGuiWindowFlags_None)) {
@@ -280,7 +301,10 @@ int main(int, char**)
                 }
             }ImGui::End();
         }
-        else break;
+        else if (!window_open && !login_open) {
+            //send disconnect message here
+            break;
+        }
 
         for (int i = 0; i < Users.size(); i++)
         {
