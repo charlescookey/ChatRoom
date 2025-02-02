@@ -155,7 +155,7 @@ int main(int, char**)
     //ImGui_ImplWin32_EnableDpiAwareness();
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
     ::RegisterClassExW(&wc);
-    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui DirectX11 Example", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
+    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Chat Room", WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
 
     std::string name;
 
@@ -209,6 +209,7 @@ int main(int, char**)
 
     bool window_open = false;
     bool login_open = true;
+    bool stopped = false;
 
     bool login_error = false;
     std::string login_error_message{};
@@ -337,6 +338,7 @@ int main(int, char**)
         }
         else if (!window_open && !login_open) {
             //send disconnect message here
+            stopped = true;
             std::string stopMessage = std::string("5") + delimiter + "bye" + delimiter + name;
             std::cout << "Sent disconnect\n";
             net.sendMessage(stopMessage);
@@ -381,6 +383,12 @@ int main(int, char**)
     ::DestroyWindow(hwnd);
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
 
+
+    if (!stopped) {
+        std::string stopMessage = std::string("5") + delimiter + "bye" + delimiter + name;
+        std::cout << "Sent disconnect\n";
+        net.sendMessage(stopMessage);
+    }
     receivingThread->join();
     return 0;
 }
