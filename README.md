@@ -1,4 +1,4 @@
-#ChatRoom
+# ChatRoom
 This project involves create a networked chat room application using **WinSock** for the networking, **ImGui** for the Graphical Interface and **FMOD** for the sound. 
 
 
